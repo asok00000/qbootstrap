@@ -1,0 +1,12 @@
+#ifndef QBOOTSTRAP_GLOBAL_H
+#define QBOOTSTRAP_GLOBAL_H
+
+#include <QtCore/qglobal.h>
+
+#if defined(QBOOSTRAP_LIBRARY)
+#define QBOOTSTRAP_EXPORT Q_DECL_EXPORT
+#else
+#define QBOOTSTRAP_EXPORT Q_DECL_IMPORT
+#endif
+
+#endif // QBOOTSTRAP_GLOBAL_H

@@ -1,0 +1,16 @@
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M7.5 1.90625V2.84375H8.5V1.90625H7.5Z" fill="black"/>
+<path d="M7.5 3.78125V4.71875H8.5V3.78125H7.5Z" fill="black"/>
+<path d="M7.5 5.65625V6.59375H8.5V5.65625H7.5Z" fill="black"/>
+<path d="M1.90625 8.5H2.84375V7.5H1.90625V8.5Z" fill="black"/>
+<path d="M3.78125 8.5H4.71875V7.5H3.78125V8.5Z" fill="black"/>
+<path d="M5.65625 8.5H6.59375V7.5H5.65625V8.5Z" fill="black"/>
+<path d="M8.46875 8.5V8.46875H8.5V7.53125H8.46875V7.5H7.53125V7.53125H7.5V8.46875H7.53125V8.5H8.46875Z" fill="black"/>
+<path d="M9.40625 8.5H10.3438V7.5H9.40625V8.5Z" fill="black"/>
+<path d="M11.2812 8.5H12.2188V7.5H11.2812V8.5Z" fill="black"/>
+<path d="M13.1562 8.5H14.0938V7.5H13.1562V8.5Z" fill="black"/>
+<path d="M7.5 9.40625V10.3438H8.5V9.40625H7.5Z" fill="black"/>
+<path d="M7.5 11.2812V12.2188H8.5V11.2812H7.5Z" fill="black"/>
+<path d="M7.5 13.1562V14.0938H8.5V13.1562H7.5Z" fill="black"/>
+<path d="M0 0V16H16V0H0ZM1 1H15V15H1V1Z" fill="black"/>
+</svg>
