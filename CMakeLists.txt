@@ -36,17 +36,16 @@ add_library(qbootstrap SHARED
   ${CMAKE_CURRENT_SOURCE_DIR}/qss/qcssparser_p.h
   qss/qcssparser.cpp
   qss/stylehelper.h qss/stylehelper.cpp
-  # qss/qcssscanner.cpp
 )
 
-target_link_libraries(qbootstrap PRIVATE
+target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets
     Qt${QT_VERSION_MAJOR}::Svg
 )
 
-target_compile_definitions(qbootstrap PRIVATE QBOOSTRAP_LIBRARY)
+target_compile_definitions(${PROJECT_NAME} PRIVATE QBOOSTRAP_LIBRARY)
 
-add_custom_command(TARGET qbootstrap
+add_custom_command(TARGET ${PROJECT_NAME}
     POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_SOURCE_DIR}/../includes/qboostrap
     COMMAND ${CMAKE_COMMAND} -E copy ${EXPORT_HEADERS} ${CMAKE_CURRENT_SOURCE_DIR}/../includes/qboostrap

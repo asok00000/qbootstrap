@@ -2535,8 +2535,8 @@ bool Parser::parseRuleset(StyleRule *styleRule)
             }
         } else {
             auto srcTxt = this->symbol().text.mid(this->symbols[rewind].start, this->symbols[index].start + this->symbols[index].len - this->symbols[rewind].start);
-            if (srcTxt.endsWith("\n}")) {
-                srcTxt.truncate(srcTxt.length() - 2);
+            if (srcTxt.endsWith("}")) {
+                srcTxt.truncate(srcTxt.length() - 1);
             }
             decl.d->text = srcTxt;
         }

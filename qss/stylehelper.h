@@ -43,7 +43,7 @@ public:
     static QStyleSheetStyleCaches *styleSheetCaches;
     static bool unstylable(const QWidget *w);
     static bool initObject(const QObject *obj);
-    static QList<QCss::StyleRule> styleRules(const QObject *obj);
+    static QList<QCss::StyleRule> styleRules(const QObject *obj, bool fromCache = true);
 };
 
 #endif // STYLEHELPER_H

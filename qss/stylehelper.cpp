@@ -210,11 +210,11 @@ private:
     mutable QHash<const QObject *, QHash<QString, QString> > m_attributeCache;
 };
 
-QList<QCss::StyleRule> StyleHelper::styleRules(const QObject *obj)
+QList<QCss::StyleRule> StyleHelper::styleRules(const QObject *obj, bool fromCache)
 {
     QHash<const QObject *, QList<StyleRule>>::const_iterator cacheIt =
         styleSheetCaches->styleRulesCache.constFind(obj);
-    if (cacheIt != styleSheetCaches->styleRulesCache.constEnd())
+    if (cacheIt != styleSheetCaches->styleRulesCache.constEnd() && fromCache)
         return cacheIt.value();
 
     if (!initObject(obj)) {
@@ -226,7 +226,7 @@ QList<QCss::StyleRule> StyleHelper::styleRules(const QObject *obj)
     if (!qApp->styleSheet().isEmpty()) {
         StyleSheet appSs;
         QHash<const void *, StyleSheet>::const_iterator appCacheIt = styleSheetCaches->styleSheetCache.constFind(qApp);
-        if (appCacheIt == styleSheetCaches->styleSheetCache.constEnd()) {
+        if (appCacheIt == styleSheetCaches->styleSheetCache.constEnd() || !fromCache) {
             QString ss = qApp->styleSheet();
             if (ss.startsWith(QLatin1String("file:///")))
                 ss.remove(0, 8);
@@ -249,7 +249,7 @@ QList<QCss::StyleRule> StyleHelper::styleRules(const QObject *obj)
             continue;
         StyleSheet ss;
         QHash<const void *, StyleSheet>::const_iterator objCacheIt = styleSheetCaches->styleSheetCache.constFind(o);
-        if (objCacheIt == styleSheetCaches->styleSheetCache.constEnd()) {
+        if (objCacheIt == styleSheetCaches->styleSheetCache.constEnd() || !fromCache) {
             parser.init(styleSheet);
             if (!parser.parse(&ss)) {
                 parser.init(QLatin1String("* {") + styleSheet + QLatin1Char('}'));
@@ -257,7 +257,8 @@ QList<QCss::StyleRule> StyleHelper::styleRules(const QObject *obj)
                     qWarning() << "Could not parse stylesheet of object" << o;
             }
             ss.origin = StyleSheetOrigin_Inline;
-            styleSheetCaches->styleSheetCache.insert(o, ss);
+            if (fromCache)
+                styleSheetCaches->styleSheetCache.insert(o, ss);
         } else {
             ss = objCacheIt.value();
         }
@@ -272,7 +273,8 @@ QList<QCss::StyleRule> StyleHelper::styleRules(const QObject *obj)
     StyleSelector::NodePtr n;
     n.ptr = const_cast<QObject *>(obj);
     QList<QCss::StyleRule> rules = styleSelector.styleRulesForNode(n);
-    styleSheetCaches->styleRulesCache.insert(obj, rules);
+    if (fromCache)
+        styleSheetCaches->styleRulesCache.insert(obj, rules);
     return rules;
 }
 

@@ -7,17 +7,8 @@
 #include "qss/qcssparser_p.h"
 #include "qss/stylehelper.h"
 
-#define PSEUDO_NORMAL "normal"
-#define PSEUDO_HOVER "hover"
-#define PSEUDO_PRESSED "pressed"
-#define PSEUDO_SHOW "show"
-#define PSEUDO_HIDE "hide"
 #define STYLE_SHEET "styleSheet"
-#define QSS_NORMAL_TEMPLATE QString("%1 {%2}")
-#define QSS_HOVER_TEMPLATE QString(":hover {%1}")
-#define QSS_PRESSED_TEMPLATE QString(":pressed {%1}")
 #define QSS_PROPERTY_TEMPLATE QString("%1:%2")
-
 QVariant qssData(const QString &start, const QString &end, qreal progress)
 {
     auto currentColor = [=] (QColor sc, QColor ec) {
@@ -29,74 +20,82 @@ QVariant qssData(const QString &start, const QString &end, qreal progress)
     auto currentNumber = [=] (auto si, auto ei) {
         return si + (ei - si) * progress;
     };
-    //handle start
-    auto qsses = start.split(";");
     QCss::Parser parser;
     QMap<QString, QString> startFixedQsses, endFixedQsses;
     QMap<QString, std::pair<QString, QCss::Declaration>> startProperties, endProperties;
-    for (const auto &q : qsses) {
-        parser.init(q);
-        do {
-            QCss::Declaration dec;
-            parser.skipSpace();
-            if (parser.parseNextDeclaration(&dec) && !dec.isEmpty()) {
-                QString property = dec.d->property;
-                if (dec.d->propertyId == QCss::Color || dec.d->propertyId == QCss::BackgroundColor) {
-                    startProperties[property] = std::pair<QString, QCss::Declaration>(q, dec);
-                    continue;
-                } else if (dec.d->propertyId == QCss::BorderRadius) {
-                    if (auto values = dec.d->values; values.count() == 1) {
-                        if (auto v =values.first(); v.type == QCss::Value::Length) {
-                            startProperties[property] = std::pair<QString, QCss::Declaration>(q, dec);
-                            continue;
-                        }
-                    }
-                }else if (dec.d->propertyId == QCss::UnknownProperty) {
-                    if (auto values = dec.d->values; values.count() == 1) {
-                        if (auto v =values.first(); v.type == QCss::Value::Number) {
-                            startProperties[property] = std::pair<QString, QCss::Declaration>(q, dec);
-                            continue;
-                        }
-                    }
-                } else {
-                    startFixedQsses[property] = q.simplified();
-                }
+    //handle start
+    parser.init(start);
+    do {
+        QCss::Declaration dec;
+        parser.skipSpace();
+        const int rwind = parser.index;
+        if (parser.parseNextDeclaration(&dec) && !dec.isEmpty()) {
+            if (dec.d->text.isEmpty()) {
+                auto os = parser.symbols[rwind];
+                auto cs = parser.symbols[std::min(parser.index, (int)parser.symbols.length() - 1)];
+                dec.d->text = parser.symbol().text.mid(os.start, cs.start + cs.len - os.start);
             }
+            QString property = dec.d->property;
+            if (dec.d->propertyId == QCss::Color || dec.d->propertyId == QCss::BackgroundColor) {
+                startProperties[property] = std::pair<QString, QCss::Declaration>(dec.d->text, dec);
+                continue;
+            } else if (dec.d->propertyId == QCss::BorderRadius) {
+                if (auto values = dec.d->values; values.count() == 1) {
+                    if (auto v =values.first(); v.type == QCss::Value::Length) {
+                        startProperties[property] = std::pair<QString, QCss::Declaration>(dec.d->text, dec);
+                        continue;
+                    }
+                }
+            }else if (dec.d->propertyId == QCss::UnknownProperty) {
+                if (auto values = dec.d->values; values.count() == 1) {
+                    if (auto v =values.first(); v.type == QCss::Value::Number) {
+                        startProperties[property] = std::pair<QString, QCss::Declaration>(dec.d->text, dec);
+                        continue;
+                    }
+                }
+            } else {
+                startFixedQsses[property] = dec.d->text.simplified();
+            }
+        }
 
-        } while (parser.test(QCss::SEMICOLON));
-    }
-    qsses = end.split(";");
-    for (const auto &q : qsses) {
-        parser.init(q);
-        do {
-            QCss::Declaration dec;
-            parser.skipSpace();
-            if (parser.parseNextDeclaration(&dec) && !dec.isEmpty()) {
-                QString property = dec.d->property;
-                if (dec.d->propertyId == QCss::Color || dec.d->propertyId == QCss::BackgroundColor) {
-                    endProperties[property] = std::pair<QString, QCss::Declaration>(q, dec);
-                    continue;
-                } else if (dec.d->propertyId == QCss::BorderRadius) {
-                    if (auto values = dec.d->values; values.count() == 1) {
-                        if (auto v =values.first(); v.type == QCss::Value::Length) {
-                            endProperties[property] = std::pair<QString, QCss::Declaration>(q, dec);
-                            continue;
-                        }
-                    }
-                }else if (dec.d->propertyId == QCss::UnknownProperty) {
-                    if (auto values = dec.d->values; values.count() == 1) {
-                        if (auto v =values.first(); v.type == QCss::Value::Number) {
-                            endProperties[property] = std::pair<QString, QCss::Declaration>(q, dec);
-                            continue;
-                        }
-                    }
-                } else {
-                    startFixedQsses.remove(property);
-                    endFixedQsses[property] = q.simplified();
-                }
+    } while (parser.test(QCss::SEMICOLON));
+    //handle end
+    parser.init(end);
+    do {
+        QCss::Declaration dec;
+        parser.skipSpace();
+        const int rwind = parser.index;
+        if (parser.parseNextDeclaration(&dec) && !dec.isEmpty()) {
+            if (dec.d->text.isEmpty()) {
+                auto os = parser.symbols[rwind];
+                auto cs = parser.symbols[std::min(parser.index, (int)parser.symbols.length() - 1)];
+                dec.d->text = parser.symbol().text.mid(os.start, cs.start + cs.len - os.start);
             }
-        } while (parser.test(QCss::SEMICOLON));
-    }
+            QString property = dec.d->property;
+            if (dec.d->propertyId == QCss::Color || dec.d->propertyId == QCss::BackgroundColor) {
+                endProperties[property] = std::pair<QString, QCss::Declaration>(dec.d->text, dec);
+                continue;
+            } else if (dec.d->propertyId == QCss::BorderRadius) {
+                if (auto values = dec.d->values; values.count() == 1) {
+                    if (auto v =values.first(); v.type == QCss::Value::Length) {
+                        endProperties[property] = std::pair<QString, QCss::Declaration>(dec.d->text, dec);
+                        continue;
+                    }
+                }
+            }else if (dec.d->propertyId == QCss::UnknownProperty) {
+                if (auto values = dec.d->values; values.count() == 1) {
+                    if (auto v =values.first(); v.type == QCss::Value::Number) {
+                        endProperties[property] = std::pair<QString, QCss::Declaration>(dec.d->text, dec);
+                        continue;
+                    }
+                }
+            } else {
+                startFixedQsses.remove(property);
+                endFixedQsses[property] = dec.d->text.simplified();
+            }
+        }
+    } while (parser.test(QCss::SEMICOLON));
+
     endFixedQsses.insert(startFixedQsses);
     for (auto it = startProperties.begin(); it != startProperties.end(); it++) {
         auto [sqss, sdata] = startProperties[it.key()];
@@ -164,7 +163,8 @@ QVariant qssData(const QString &start, const QString &end, qreal progress)
         auto [eqss, edata] = endProperties[it.key()];
         endFixedQsses[it.key()] = eqss;
     }
-    return endFixedQsses.values().join(";");
+    auto values = endFixedQsses.values();
+    return values.join(";");
 }
 AnimateWidgets::~AnimateWidgets()
 {
@@ -188,6 +188,25 @@ void AnimateWidgets::addQssAnimation(QObject *obj, QString property, QVariant fr
 
 }
 
+QStringList AnimateWidgets::qssByPseudo(QWidget *item, qint64 type)
+{
+    auto rules = StyleHelper::styleRules(item);
+    for (auto &rule : rules) {
+        if (!rule.selectors.isEmpty() &&
+            !rule.selectors.first().basicSelectors.isEmpty() &&
+            !rule.selectors.first().basicSelectors.first().pseudos.isEmpty()) {
+            if (rule.selectors.first().basicSelectors.first().pseudos.first().type == type) {
+                QStringList ssLines;
+                for (auto &decl : rule.declarations) {
+                    ssLines << decl.d->text;
+                }
+                return ssLines;
+            }
+        }
+    }
+    return QStringList();
+}
+
 void AnimateWidgets::enableQssAnimation(QWidget *widget)
 {
     widget->installEventFilter(this);
@@ -197,169 +216,79 @@ void AnimateWidgets::enableQssAnimation(QWidget *widget)
 void AnimateWidgets::disableQssAnimation(QWidget *widget)
 {
     widget->removeEventFilter(this);
-    m_animatedWidgetQss.remove(widget);
+    m_animatedWidgets.remove(widget);
 }
 
 AnimateWidgets::AnimateWidgets(QObject *parent) :QObject(parent)
 {
-    m_handledPseudoes << PSEUDO_NORMAL << PSEUDO_HOVER << PSEUDO_PRESSED;
     qRegisterAnimationInterpolator<QString>(qssData);
 }
 
 void AnimateWidgets::initWidgetAnimation(QWidget *target)
 {
-
-    auto rules = StyleHelper::styleRules(target);
-    qDebug() << rules.count() << target->objectName();
-    for (auto &rule : rules) {
-        for (auto &selector : rule.selectors) {
-            qDebug() << selector.pseudoElement();
-        }
+    m_animatedWidgets << target;
+    auto ssLines = qssByPseudo(target, QCss::PseudoClass_Normal);
+    if (!ssLines.isEmpty()) {
+        target->setStyleSheet(ssLines.join(""));
     }
-
-    auto qss = target->styleSheet();
-    auto pseudoes = qss.split("}", Qt::SkipEmptyParts);
-    QMap<QString, QString> declarations;
-    for (auto pseudo : pseudoes) {
-        pseudo += "}";
-        QCss::Parser parser(pseudo);
-        if (QCss::StyleSheet sheet; parser.parse(&sheet, Qt::CaseInsensitive)) {
-            for (const auto &sr : sheet.styleRules) {
-                QStringList pseudoSelectors;
-                for (const auto &selector : sr.selectors) {
-                    for (const auto &basicSelector : selector.basicSelectors) {
-                        for (const auto &pseudoSelector : basicSelector.pseudos) {
-                            pseudoSelectors << pseudoSelector.name;
-                        }
-                    }
-                }
-                for (auto &selector : pseudoSelectors) {
-                    static QRegularExpression pseudoReg(R"(.*{|}.*|\n|\t)");
-                    declarations[selector] = pseudo.remove(pseudoReg);
-                }
-            }
-        } else {
-            qWarning() << "Invalid QSS.";
-        }
-    }
-
-    if (declarations.contains(PSEUDO_NORMAL)) {
-        auto originQss = declarations[PSEUDO_NORMAL];
-        originQss.replace(QString(":") + PSEUDO_NORMAL, target->metaObject()->className());
-        target->setStyleSheet(originQss);
-    }
-    m_animatedWidgetQss[target] = declarations;
-
 }
 
-QString AnimateWidgets::currentAnimationQss(QWidget* target, QString pseudo)
+QString AnimateWidgets::currentAnimationQss(QWidget *target)
 {
-    QString qssTemplate = "";
-    auto animatedData = m_animatedWidgetQss[target];
-    if (target->styleSheet().indexOf("{") >= 0) {
-        auto declaration = animatedData.find(PSEUDO_NORMAL);
-        if (declaration != animatedData.end()) {
-            return declaration.value();
+    QString qss = "";
+    auto rules = StyleHelper::styleRules(target, false);
+    if (!rules.isEmpty()) {
+        for (auto &decl : rules.last().declarations) {
+            qss += decl.d->text;
         }
     }
-    if (pseudo == PSEUDO_NORMAL) {
-        qssTemplate = QSS_NORMAL_TEMPLATE.arg(target->metaObject()->className());
-    } else if (pseudo == PSEUDO_HOVER) {
-        qssTemplate = QSS_HOVER_TEMPLATE;
-    } else if (pseudo == PSEUDO_PRESSED) {
-        qssTemplate = QSS_PRESSED_TEMPLATE;
-    } else {
-        return "";
-    }
-    auto rules = StyleHelper::styleRules(target);
-    qDebug() << rules.count() << target->objectName();
-    if (auto declaration = animatedData.find(pseudo); declaration != animatedData.end())  {
-        auto qss = declaration.value();
-        QString currentQss = target->styleSheet();
-        QStringList subQsses;
-        auto qsses = currentQss.split(";");
-        QCss::Parser parser;
-        for (const auto &q : qsses) {
-            parser.init(q);
-            do {
-                QCss::Declaration dec;
-                parser.skipSpace();
-                if (parser.parseNextDeclaration(&dec) && !dec.isEmpty()) {
-                    QString property = dec.d->property;
-                    if (dec.d->propertyId == QCss::Color || dec.d->propertyId == QCss::BackgroundColor) {
-                        subQsses << QSS_PROPERTY_TEMPLATE.arg(property).arg(dec.d->values.first().variant.toString());
-                        continue;
-                    } else if (dec.d->propertyId == QCss::BorderRadius) {
-                        if (auto values = dec.d->values; values.count() == 1) {
-                            if (auto v =values.first(); v.type == QCss::Value::Length) {
-                                subQsses << QSS_PROPERTY_TEMPLATE.arg(property).arg(v.variant.toString());
-                                continue;
-                            }
-                        }
-                    }else if (dec.d->propertyId == QCss::UnknownProperty) {
-                        if (auto values = dec.d->values; values.count() == 1) {
-                            if (auto v =values.first(); v.type == QCss::Value::Number) {
-                                subQsses << QSS_PROPERTY_TEMPLATE.arg(property).arg(v.variant.toFloat());
-                                continue;
-                            }
-                        }
-                    }
-                }
-                subQsses << q;
-            } while (parser.test(QCss::SEMICOLON));
-        }
-        currentQss = subQsses.join(";");
-        return currentQss;
-    }
-    return "";
+    return qss;
 }
 
 bool AnimateWidgets::eventFilter(QObject *watched, QEvent *event)
 {
-    if (m_animatedWidgetQss.contains(qobject_cast<QWidget*>(watched))) {
-        auto animatedData = m_animatedWidgetQss[static_cast<QWidget*>(watched)];
+    if (m_animatedWidgets.contains(qobject_cast<QWidget*>(watched))) {
         auto widget = static_cast<QWidget*>(watched);
         if (event->type() == QEvent::Polish) {
+            // StyleHelper::styleSheetCaches->objectDestroyed(watched);
             // initWidgetAnimation(widget);
+
         } else if (event->type() == QEvent::Show) {
             return true;
         } else if (event->type() == QEvent::Hide) {
             return true;
         } else if (event->type() == QEvent::Enter) {
             //hover qss
-            auto hoverData = animatedData.find(PSEUDO_HOVER);
-            if (hoverData != animatedData.end()) {
-                auto currentQss = currentAnimationQss(widget, PSEUDO_HOVER);
-                auto qss = hoverData.value();
-                if (!currentQss.isEmpty() && !qss.isEmpty()) {
-                    addQssAnimation(watched, STYLE_SHEET, currentQss, qss);
+            auto ssLines = qssByPseudo(widget, QCss::PseudoClass_Hover);
+            if (!ssLines.isEmpty()) {
+                QString hoverQss = ssLines.join("");
+                auto currentQss = currentAnimationQss(widget);
+                if (!currentQss.isEmpty() && !hoverQss.isEmpty()) {
+                    addQssAnimation(watched, STYLE_SHEET, currentQss, hoverQss);
                 }
             }
         } else if (event->type() == QEvent::Leave || event->type() == QEvent::MouseButtonRelease) {
             //normal qss
-            auto nomalData = animatedData.find(PSEUDO_NORMAL);
-            if (nomalData != animatedData.end()) {
-                auto currentQss = currentAnimationQss(widget, PSEUDO_NORMAL);
-                auto qss = nomalData.value();
-                if (!currentQss.isEmpty() && !qss.isEmpty()) {
-                    addQssAnimation(watched, STYLE_SHEET, currentQss, qss);
+            auto ssLines = qssByPseudo(widget, QCss::PseudoClass_Normal);
+            if (!ssLines.isEmpty()) {
+                QString normalQss = ssLines.join("");
+                auto currentQss = currentAnimationQss(widget);
+                if (!currentQss.isEmpty() && !normalQss.isEmpty()) {
+                    addQssAnimation(watched, STYLE_SHEET, currentQss, normalQss);
                 }
             }
         } else if (event->type() == QEvent::MouseButtonPress) {
             //pressed qss
-            auto pressedData = animatedData.find(PSEUDO_PRESSED);
-            if (pressedData == animatedData.end()) {
-                pressedData = animatedData.find(PSEUDO_HOVER);
-            }
-            if (pressedData != animatedData.end()) {
-                auto currentQss = currentAnimationQss(widget, PSEUDO_PRESSED);
-                auto qss = pressedData.value();
-                if (!currentQss.isEmpty() && !qss.isEmpty()) {
-                    addQssAnimation(watched, STYLE_SHEET, currentQss, qss);
+            auto ssLines = qssByPseudo(widget, QCss::PseudoClass_Pressed);
+            if (!ssLines.isEmpty()) {
+                QString pressedQss = ssLines.join("");
+                auto currentQss = currentAnimationQss(widget);
+                if (!currentQss.isEmpty() && !pressedQss.isEmpty()) {
+                    addQssAnimation(watched, STYLE_SHEET, currentQss, pressedQss);
                 }
             }
         } else if (event->type() == QEvent::Destroy) {
-            m_animatedWidgetQss.remove(widget);
+            m_animatedWidgets.remove(widget);
         }
     }
     return QObject::eventFilter(watched, event);
