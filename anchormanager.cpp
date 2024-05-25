@@ -3,6 +3,7 @@
 #include <QEvent>
 #include <QPropertyAnimation>
 #include <QDebug>
+#include <QParallelAnimationGroup>
 AnchorManager::AnchorManager(QObject *parent)
     : QObject{parent}
 {}
@@ -93,7 +94,7 @@ void AnchorManager::updateAnchor(AnchorInfo anchorInfo, QWidget *source)
     }
     auto anchorMap = anchorInfo.anchors;
     auto margins = anchorInfo.margins;
-    auto rect = target->rect(), sourceRect = source->rect();
+    auto rect = target->geometry(), sourceRect = source->rect();
     if (source != target->parentWidget()) {
         sourceRect = source->geometry();
     }
@@ -158,12 +159,20 @@ void AnchorManager::updateAnchor(AnchorInfo anchorInfo, QWidget *source)
         }
     }
     if (anchorInfo.animated) {
-        auto animation = new QPropertyAnimation(target, "geometry");
+        auto group = new QParallelAnimationGroup();
+        auto animation = new QPropertyAnimation(target, "pos");
         animation->setDuration(300);
         animation->setEasingCurve(QEasingCurve::InCurve);
-        animation->setStartValue(target->geometry());
-        animation->setEndValue(rect);
-        animation->start(QAbstractAnimation::DeleteWhenStopped);
+        animation->setStartValue(target->geometry().topLeft());
+        animation->setEndValue(rect.topLeft());
+        group->addAnimation(animation);
+        animation = new QPropertyAnimation(target, "size");
+        animation->setDuration(300);
+        animation->setEasingCurve(QEasingCurve::InCurve);
+        animation->setStartValue(target->geometry().size());
+        animation->setEndValue(rect.size());
+        group->addAnimation(animation);
+        group->start(QAbstractAnimation::DeleteWhenStopped);
     } else {
         target->setGeometry(rect);
     }

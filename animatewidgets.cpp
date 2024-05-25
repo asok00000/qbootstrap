@@ -4,6 +4,7 @@
 #include <QWidget>
 #include <QEvent>
 #include <QRegularExpression>
+#include <QElapsedTimer>
 #include "qss/qcssparser_p.h"
 #include "qss/stylehelper.h"
 
@@ -13,9 +14,9 @@ QVariant qssData(const QString &start, const QString &end, qreal progress)
 {
     auto currentColor = [=] (QColor sc, QColor ec) {
         return QColor::fromRgbF(sc.redF() + (ec.redF()-sc.redF()) * progress,
-                               sc.greenF() + (ec.greenF()-sc.greenF()) * progress,
-                               sc.blueF() + (ec.blueF()-sc.blueF()) * progress,
-                               sc.alphaF() + (ec.alphaF()-sc.alphaF()) * progress);
+                                sc.greenF() + (ec.greenF()-sc.greenF()) * progress,
+                                sc.blueF() + (ec.blueF()-sc.blueF()) * progress,
+                                sc.alphaF() + (ec.alphaF()-sc.alphaF()) * progress);
     };
     auto currentNumber = [=] (auto si, auto ei) {
         return si + (ei - si) * progress;
@@ -46,7 +47,7 @@ QVariant qssData(const QString &start, const QString &end, qreal progress)
                         continue;
                     }
                 }
-            }else if (dec.d->propertyId == QCss::UnknownProperty) {
+            } else if (dec.d->propertyId == QCss::UnknownProperty) {
                 if (auto values = dec.d->values; values.count() == 1) {
                     if (auto v =values.first(); v.type == QCss::Value::Number) {
                         startProperties[property] = std::pair<QString, QCss::Declaration>(dec.d->text, dec);
@@ -105,14 +106,14 @@ QVariant qssData(const QString &start, const QString &end, qreal progress)
             case QCss::Property::NumProperties: {
                 qDebug() << "num property:"  << it.key() << sqss;
             }
-                break;
+            break;
             case QCss::Property::BackgroundColor:
             case QCss::Property::Color: {
                 auto sColor = sdata.colorValue();
                 auto eColor = edata.colorValue();
                 endFixedQsses[it.key()] = QSS_PROPERTY_TEMPLATE.arg(it.key(), currentColor(sColor, eColor).name(QColor::HexArgb));
             }
-                break;
+            break;
             case QCss::Property::BorderRadius: {
                 auto sValue = sdata.d->values.first();
                 auto eValue = edata.d->values.first();
@@ -133,7 +134,7 @@ QVariant qssData(const QString &start, const QString &end, qreal progress)
                 }
                 endFixedQsses[it.key()] = QSS_PROPERTY_TEMPLATE.arg(it.key()).arg(currentNumber(sRadius, eRadius)) + "px";
             }
-                break;
+            break;
             case QCss::Property::Width:
                 qDebug() << "width:"  << it.key() << sqss;
                 break;
@@ -149,7 +150,7 @@ QVariant qssData(const QString &start, const QString &end, qreal progress)
                     qWarning() << "unknown property:"  << it.key() << sValue << eValue;
                 }
             }
-                break;
+            break;
             default:
                 break;
             }
@@ -210,6 +211,7 @@ QStringList AnimateWidgets::qssByPseudo(QWidget *item, qint64 type)
 void AnimateWidgets::enableQssAnimation(QWidget *widget)
 {
     widget->installEventFilter(this);
+    m_animatedWidgets << widget;
     initWidgetAnimation(widget);
 }
 
@@ -226,7 +228,6 @@ AnimateWidgets::AnimateWidgets(QObject *parent) :QObject(parent)
 
 void AnimateWidgets::initWidgetAnimation(QWidget *target)
 {
-    m_animatedWidgets << target;
     auto ssLines = qssByPseudo(target, QCss::PseudoClass_Normal);
     if (!ssLines.isEmpty()) {
         target->setStyleSheet(ssLines.join(""));
@@ -249,14 +250,11 @@ bool AnimateWidgets::eventFilter(QObject *watched, QEvent *event)
 {
     if (m_animatedWidgets.contains(qobject_cast<QWidget*>(watched))) {
         auto widget = static_cast<QWidget*>(watched);
-        if (event->type() == QEvent::Polish) {
+        if (event->type() == QEvent::PolishRequest) {
+            // qDebug() << "polish" << widget->objectName();
             // StyleHelper::styleSheetCaches->objectDestroyed(watched);
             // initWidgetAnimation(widget);
 
-        } else if (event->type() == QEvent::Show) {
-            return true;
-        } else if (event->type() == QEvent::Hide) {
-            return true;
         } else if (event->type() == QEvent::Enter) {
             //hover qss
             auto ssLines = qssByPseudo(widget, QCss::PseudoClass_Hover);
@@ -292,4 +290,34 @@ bool AnimateWidgets::eventFilter(QObject *watched, QEvent *event)
         }
     }
     return QObject::eventFilter(watched, event);
+}
+
+void AnimateWidgets::startQssAnimation(QObject *obj, QString start, QString end, int duration, bool loop, const QEasingCurve &easing)
+{
+    auto animation = new QPropertyAnimation(obj, STYLE_SHEET, this);
+    animation->setDirection(QAbstractAnimation::Forward);
+    animation->setDuration(duration);
+    animation->setEasingCurve(easing);
+    animation->setStartValue(start);
+    animation->setEndValue(end);
+    animation->setLoopCount(loop ? -1 : 1);
+    animation->start(QAbstractAnimation::DeleteWhenStopped);
+    connect(animation, &QAbstractAnimation::stateChanged, this, [&](QAbstractAnimation::State newState, QAbstractAnimation::State oldState){
+        if (newState == QAbstractAnimation::Stopped) {
+            auto a = static_cast<QPropertyAnimation*>(QObject::sender());
+            if (a) {
+                auto t = a->targetObject();
+                m_animations.take(t);
+            }
+        }
+    });
+    m_animations[obj] = animation;
+}
+
+void AnimateWidgets::stopQssAnimation(QObject *obj)
+{
+    if (m_animations.contains(obj)) {
+        auto animation = m_animations.take(obj);
+        animation->stop();
+    }
 }

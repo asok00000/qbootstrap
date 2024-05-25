@@ -18,6 +18,8 @@ public:
     void enableQssAnimation(QWidget* widget);
     void disableQssAnimation(QWidget* widget);
     bool eventFilter(QObject *watched, QEvent *event);
+    void startQssAnimation(QObject *obj, QString start, QString end, int duration = 1000, bool loop = true, const QEasingCurve &easing = QEasingCurve::OutQuad);
+    void stopQssAnimation(QObject *obj);
 private:
     AnimateWidgets(QObject *parent = nullptr);
     void initWidgetAnimation(QWidget *target);
@@ -26,6 +28,7 @@ private:
     QStringList qssByPseudo(QWidget* item, qint64 type);
 private:
     QSet<QObject*> m_animatedWidgets;
+    QHash<QObject*, QAbstractAnimation*> m_animations;
 };
 
 #endif // ANIMATEWIDGETS_H

@@ -7,6 +7,7 @@
 #include <QMap>
 #include "qbootstrap_global.h"
 class QWidget;
+class QAbstractAnimation;
 class QBOOTSTRAP_EXPORT AnchorManager : public QObject
 {
     Q_OBJECT
