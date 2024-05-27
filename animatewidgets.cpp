@@ -14,9 +14,9 @@ QVariant qssData(const QString &start, const QString &end, qreal progress)
 {
     auto currentColor = [=] (QColor sc, QColor ec) {
         return QColor::fromRgbF(sc.redF() + (ec.redF()-sc.redF()) * progress,
-                                sc.greenF() + (ec.greenF()-sc.greenF()) * progress,
-                                sc.blueF() + (ec.blueF()-sc.blueF()) * progress,
-                                sc.alphaF() + (ec.alphaF()-sc.alphaF()) * progress);
+                               sc.greenF() + (ec.greenF()-sc.greenF()) * progress,
+                               sc.blueF() + (ec.blueF()-sc.blueF()) * progress,
+                               sc.alphaF() + (ec.alphaF()-sc.alphaF()) * progress);
     };
     auto currentNumber = [=] (auto si, auto ei) {
         return si + (ei - si) * progress;
@@ -47,7 +47,7 @@ QVariant qssData(const QString &start, const QString &end, qreal progress)
                         continue;
                     }
                 }
-            } else if (dec.d->propertyId == QCss::UnknownProperty) {
+            }else if (dec.d->propertyId == QCss::UnknownProperty) {
                 if (auto values = dec.d->values; values.count() == 1) {
                     if (auto v =values.first(); v.type == QCss::Value::Number) {
                         startProperties[property] = std::pair<QString, QCss::Declaration>(dec.d->text, dec);
@@ -106,14 +106,14 @@ QVariant qssData(const QString &start, const QString &end, qreal progress)
             case QCss::Property::NumProperties: {
                 qDebug() << "num property:"  << it.key() << sqss;
             }
-            break;
+                break;
             case QCss::Property::BackgroundColor:
             case QCss::Property::Color: {
                 auto sColor = sdata.colorValue();
                 auto eColor = edata.colorValue();
                 endFixedQsses[it.key()] = QSS_PROPERTY_TEMPLATE.arg(it.key(), currentColor(sColor, eColor).name(QColor::HexArgb));
             }
-            break;
+                break;
             case QCss::Property::BorderRadius: {
                 auto sValue = sdata.d->values.first();
                 auto eValue = edata.d->values.first();
@@ -134,7 +134,7 @@ QVariant qssData(const QString &start, const QString &end, qreal progress)
                 }
                 endFixedQsses[it.key()] = QSS_PROPERTY_TEMPLATE.arg(it.key()).arg(currentNumber(sRadius, eRadius)) + "px";
             }
-            break;
+                break;
             case QCss::Property::Width:
                 qDebug() << "width:"  << it.key() << sqss;
                 break;
@@ -150,7 +150,7 @@ QVariant qssData(const QString &start, const QString &end, qreal progress)
                     qWarning() << "unknown property:"  << it.key() << sValue << eValue;
                 }
             }
-            break;
+                break;
             default:
                 break;
             }
@@ -179,6 +179,10 @@ AnimateWidgets *AnimateWidgets::instance()
 
 void AnimateWidgets::addQssAnimation(QObject *obj, QString property, QVariant from, QVariant to, int duration, QAbstractAnimation::Direction direction, const QEasingCurve &easing)
 {
+    if (m_pseudoAnimations.contains(obj)) {
+        auto a = m_pseudoAnimations[obj];
+        a->stop();
+    }
     auto animation = new QPropertyAnimation(obj, property.toUtf8(), this);
     animation->setDirection(direction);
     animation->setDuration(duration);
@@ -186,6 +190,16 @@ void AnimateWidgets::addQssAnimation(QObject *obj, QString property, QVariant fr
     animation->setStartValue(from);
     animation->setEndValue(to);
     animation->start(QAbstractAnimation::DeleteWhenStopped);
+    connect(animation, &QAbstractAnimation::stateChanged, this, [&](QAbstractAnimation::State newState, QAbstractAnimation::State oldState){
+        if (newState == QAbstractAnimation::Stopped) {
+            auto a = static_cast<QPropertyAnimation*>(QObject::sender());
+            if (a) {
+                auto t = a->targetObject();
+                m_pseudoAnimations.take(t);
+            }
+        }
+    });
+    m_pseudoAnimations[obj] = animation;
 
 }
 

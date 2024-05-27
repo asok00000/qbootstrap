@@ -29,6 +29,7 @@ private:
 private:
     QSet<QObject*> m_animatedWidgets;
     QHash<QObject*, QAbstractAnimation*> m_animations;
+    QHash<QObject*, QAbstractAnimation*> m_pseudoAnimations;
 };
 
 #endif // ANIMATEWIDGETS_H
