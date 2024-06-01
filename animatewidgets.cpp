@@ -5,6 +5,7 @@
 #include <QEvent>
 #include <QRegularExpression>
 #include <QElapsedTimer>
+#include <QTimer>
 #include "qss/qcssparser_p.h"
 #include "qss/stylehelper.h"
 
@@ -226,7 +227,6 @@ void AnimateWidgets::enableQssAnimation(QWidget *widget)
 {
     widget->installEventFilter(this);
     m_animatedWidgets << widget;
-    initWidgetAnimation(widget);
 }
 
 void AnimateWidgets::disableQssAnimation(QWidget *widget)
@@ -264,10 +264,14 @@ bool AnimateWidgets::eventFilter(QObject *watched, QEvent *event)
 {
     if (m_animatedWidgets.contains(qobject_cast<QWidget*>(watched))) {
         auto widget = static_cast<QWidget*>(watched);
-        if (event->type() == QEvent::PolishRequest) {
+        if (event->type() == QEvent::Polish) {
             // qDebug() << "polish" << widget->objectName();
             // StyleHelper::styleSheetCaches->objectDestroyed(watched);
-            // initWidgetAnimation(widget);
+            //init animation after widget polished(after style polished)
+            QTimer::singleShot(0, this, [=]{
+                initWidgetAnimation(widget);
+            });
+
 
         } else if (event->type() == QEvent::Enter) {
             //hover qss

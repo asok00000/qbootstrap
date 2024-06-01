@@ -21,6 +21,7 @@ set(EXPORT_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/maskwidget.h
     ${CMAKE_CURRENT_SOURCE_DIR}/tooltipmanager.h
     ${CMAKE_CURRENT_SOURCE_DIR}/tooltip.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/elementstyle.h
 )
 add_library(qbootstrap SHARED
   qbootstrap.cpp
@@ -36,6 +37,7 @@ add_library(qbootstrap SHARED
   ${CMAKE_CURRENT_SOURCE_DIR}/qss/qcssparser_p.h
   qss/qcssparser.cpp
   qss/stylehelper.h qss/stylehelper.cpp
+  elementstyle.cpp
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
