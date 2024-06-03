@@ -25,6 +25,11 @@ public:
         ST_Danger,
         ST_Info
     };
+    enum IconPosition {
+        IP_LEFT,
+        IP_RIGHT
+    };
+
     struct StyleColors {
         QColor dark;
         QColor color;

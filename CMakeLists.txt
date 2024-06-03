@@ -22,6 +22,7 @@ set(EXPORT_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/tooltipmanager.h
     ${CMAKE_CURRENT_SOURCE_DIR}/tooltip.h
     ${CMAKE_CURRENT_SOURCE_DIR}/elementstyle.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/linkbutton.h
 )
 add_library(qbootstrap SHARED
   qbootstrap.cpp
@@ -38,6 +39,7 @@ add_library(qbootstrap SHARED
   qss/qcssparser.cpp
   qss/stylehelper.h qss/stylehelper.cpp
   elementstyle.cpp
+  linkbutton.cpp
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE

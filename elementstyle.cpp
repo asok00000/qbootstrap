@@ -5,6 +5,8 @@
 #include <QPainter>
 #include <QEvent>
 #include <QSvgRenderer>
+#include <QPushButton>
+#include "linkbutton.h"
 #include "basewidget.h"
 #include "qbootstrap.h"
 #define PROPERTY_DARK_MODE "darkMode"
@@ -14,6 +16,7 @@
 #define PROPERTY_BUTTON_TYPE "buttonType"
 #define PROPERTY_ICON_NAME "iconName"
 #define PROPERTY_SPACING "spacing"
+#define PROPERTY_ICON_POSITION "iconPosition"
 static const ElementStyle::ThemeColors s_light = {
     {/*primary*/QColor("#337ECC"), QColor("#409EFF"), QColor("#79BBFF"), QColor("#9FCEFF"), QColor("#C6E2FF"), QColor("#D9ECFF"), QColor("#ECF6FF")},
     {/*success*/QColor("#529B2E"), QColor("#67C23A"), QColor("#95D576"), QColor("#B2E09C"), QColor("#D2EDC4"), QColor("#E1F3D8"), QColor("#F0F9EC")},
@@ -98,7 +101,10 @@ void ElementStyle::polish(QWidget *widget)
     if (!widget->property(PROPERTY_STYLE_MODE).isValid()) {
         widget->setProperty(PROPERTY_STYLE_MODE, ST_Default);
     }
-    if (widget->metaObject()->className() == QString("QPushButton") && !widget->property(PROPERTY_BUTTON_TYPE).isValid()) {
+    if (!widget->property(PROPERTY_ICON_POSITION).isValid()) {
+        widget->setProperty(PROPERTY_ICON_POSITION, IP_LEFT);
+    }
+    if (widget->metaObject()->inherits(QPushButton().metaObject()) && !widget->property(PROPERTY_BUTTON_TYPE).isValid()) {
         widget->setProperty(PROPERTY_BUTTON_TYPE, BT_Default);
     }
     QString iconName = widget->property(PROPERTY_ICON_NAME).toString();
@@ -135,24 +141,55 @@ void ElementStyle::drawPushButton(ControlElement element, const QStyleOptionButt
     p->setBrush(palette.button());
     p->drawRoundedRect(rect, radius, radius);
     p->setPen(palette.color(QPalette::ButtonText));
-    p->setFont(w->font());
+    auto f = w->font();
+    if (w->metaObject()->inherits(LinkButton().metaObject())) {
+        if (opt.state.testAnyFlags(QStyle::State_MouseOver | QStyle::State_Sunken)) {
+            f.setUnderline(true);
+        }
+    }
+    p->setFont(f);
     ButtonType buttonType = (ButtonType)w->property(PROPERTY_BUTTON_TYPE).toInt();
-    if (buttonType == BT_Icon) {
-        QImage svgImage = QImage(opt.iconSize * w->devicePixelRatio(), QImage::Format_ARGB32_Premultiplied);
+    QString iconName = w->property(PROPERTY_ICON_NAME).toString();
+    QImage svgImage;
+    if (iconName != "") {
+        svgImage = QImage(opt.iconSize * w->devicePixelRatio(), QImage::Format_ARGB32_Premultiplied);
         svgImage.fill(Qt::transparent);
         QPainter painter(&svgImage);
         BaseWidget::hightQualityPainter(painter);
-        QString iconName = w->property(PROPERTY_ICON_NAME).toString();
         m_icons[iconName]->render(&painter);
         painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
         painter.setBrush(palette.color(QPalette::ButtonText));
         painter.setPen(Qt::NoPen);
         painter.drawRect(svgImage.rect());
+    }
+    if (buttonType == BT_Icon) {
         QRect iconRect(QPoint(0, 0), opt.iconSize);
         iconRect.moveCenter(rect.center());
         p->drawImage(iconRect, svgImage);
     } else {
-        p->drawText(rect, opt.text, QTextOption(Qt::AlignCenter));
+        if (iconName != "") {
+            int spacing = w->property(PROPERTY_SPACING).toInt();
+            IconPosition ip = (IconPosition)w->property(PROPERTY_ICON_POSITION).toInt();
+            auto textWidth = opt.fontMetrics.horizontalAdvance(opt.text);
+            QRect r(0, 0, opt.iconSize.width() + spacing + textWidth, rect.height());
+            r.moveCenter(rect.center());
+            QRect iconRect(QPoint(0, 0), opt.iconSize);
+            iconRect.moveCenter(r.center());
+            if (ip == IP_LEFT) {
+                iconRect.moveLeft(r.left());
+                p->drawImage(iconRect, svgImage);
+                r.setLeft(iconRect.right() + spacing);
+                p->drawText(r, opt.text, QTextOption(Qt::AlignCenter));
+            } else {
+                iconRect.moveRight(r.right());
+                p->drawImage(iconRect, svgImage);
+                r.setRight(iconRect.left() - spacing);
+                p->drawText(r, opt.text, QTextOption(Qt::AlignCenter));
+            }
+        } else {
+            p->drawText(rect, opt.text, QTextOption(Qt::AlignCenter));
+        }
+
     }
 
 }
@@ -164,6 +201,10 @@ QPalette ElementStyle::buttonPalette(const QWidget *w, const State &state) const
     bool plainMode = w->property(PROPERTY_PLAIN_MODE).toBool();
     ButtonType buttonType = (ButtonType)w->property(PROPERTY_BUTTON_TYPE).toInt();
     StyleMode styleMode = (StyleMode)w->property(PROPERTY_STYLE_MODE).toInt();
+    if (w->metaObject()->inherits(LinkButton().metaObject())) {
+        plainMode = true;
+        buttonType = BT_Text;
+    }
     const ThemeColors *theme = &s_light;
     if (darkMode) {
         theme = &s_dark;
@@ -185,7 +226,7 @@ QPalette ElementStyle::buttonPalette(const QWidget *w, const State &state) const
                     return pal;
                 }
                 //pressed
-                if (state.testAnyFlag(QStyle::State_Sunken)) {
+                if (state.testAnyFlag(QStyle::State_Sunken) || state.testAnyFlag(QStyle::State_On)) {
                     pal.setColor(QPalette::Shadow, theme->primary.dark);
                     pal.setBrush(QPalette::Button, theme->fill.blank);
                     pal.setColor(QPalette::ButtonText, theme->primary.dark);
@@ -223,7 +264,7 @@ QPalette ElementStyle::buttonPalette(const QWidget *w, const State &state) const
                     return pal;
                 }
                 //pressed
-                if (state.testAnyFlag(QStyle::State_Sunken)) {
+                if (state.testAnyFlag(QStyle::State_Sunken) || state.testAnyFlag(QStyle::State_On)) {
                     pal.setBrush(QPalette::Button, style->dark);
                     return pal;
                 }
@@ -254,7 +295,7 @@ QPalette ElementStyle::buttonPalette(const QWidget *w, const State &state) const
                     return pal;
                 }
                 //pressed
-                if (state.testAnyFlag(QStyle::State_Sunken)) {
+                if (state.testAnyFlag(QStyle::State_Sunken) || state.testAnyFlag(QStyle::State_On)) {
                     pal.setColor(QPalette::Shadow, theme->primary.dark);
                     pal.setBrush(QPalette::Button, theme->primary.color10);
                     pal.setColor(QPalette::ButtonText, theme->primary.dark);
@@ -291,7 +332,7 @@ QPalette ElementStyle::buttonPalette(const QWidget *w, const State &state) const
                     return pal;
                 }
                 //pressed
-                if (state.testAnyFlag(QStyle::State_Sunken)) {
+                if (state.testAnyFlag(QStyle::State_Sunken) || state.testAnyFlag(QStyle::State_On)) {
                     pal.setBrush(QPalette::Button, style->dark);
                     return pal;
                 }
@@ -446,13 +487,18 @@ QPalette ElementStyle::buttonPalette(const QWidget *w, const State &state) const
     // };
     switch (buttonType) {
     case BT_Default:
-        return defaultButtonPalette();
-    case BT_Text:
-        return textButtonPalette();
     case BT_Icon:
-        return defaultButtonPalette();
+        defaultButtonPalette();
+        break;
+    case BT_Text:
+        textButtonPalette();
+        break;
     default:
         break;
+    }
+    if (w->metaObject()->inherits(LinkButton().metaObject())) {
+        pal.setColor(QPalette::Shadow, theme->basic.transparent);
+        pal.setBrush(QPalette::Button, theme->basic.transparent);
     }
     return pal;
 }
