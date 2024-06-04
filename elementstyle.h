@@ -100,7 +100,9 @@ public:
     QRect subElementRect(SubElement subElement, const QStyleOption *option, const QWidget *widget) const;
 private:
     void drawPushButton(ControlElement element, const QStyleOptionButton &opt, QPainter *p, const QWidget *w) const;
+    void drawRadioButton(ControlElement element, const QStyleOptionButton &opt, QPainter *p, const QWidget *w) const;
     QPalette buttonPalette(const QWidget *w, const State &state) const;
+    QPalette radioPalette(const QWidget *w, const State &state) const;
 private:
     QMap<QString, QSvgRenderer *> m_icons;
 
