@@ -98,6 +98,7 @@ public:
     void drawComplexControl(ComplexControl cc, const QStyleOptionComplex *opt, QPainter *p, const QWidget *widget) const;
     void polish(QWidget *widget);
     QRect subElementRect(SubElement subElement, const QStyleOption *option, const QWidget *widget) const;
+    bool eventFilter(QObject *watched, QEvent *event);
 private:
     void drawPushButton(ControlElement element, const QStyleOptionButton &opt, QPainter *p, const QWidget *w) const;
     void drawRadioButton(ControlElement element, const QStyleOptionButton &opt, QPainter *p, const QWidget *w) const;
@@ -105,7 +106,6 @@ private:
     QPalette radioPalette(const QWidget *w, const State &state) const;
 private:
     QMap<QString, QSvgRenderer *> m_icons;
-
 };
 
 #endif // ELEMENTSTYLE_H
