@@ -5,8 +5,7 @@
 #include <QPainter>
 #include <QEvent>
 #include <QSvgRenderer>
-#include <QPushButton>
-#include <QRadioButton>
+#include "QtGui/qpainterpath.h"
 #include "linkbutton.h"
 #include "basewidget.h"
 #include "qbootstrap.h"
@@ -66,8 +65,6 @@ void ElementStyle::drawPrimitive(PrimitiveElement pe, const QStyleOption *opt, Q
 void ElementStyle::drawControl(ControlElement element, const QStyleOption *opt, QPainter *p, const QWidget *w) const
 {
     switch (element) {
-    // case QStyle::CE_PushButtonLabel:
-    // case QStyle::CE_PushButtonBevel:
     case QStyle::CE_PushButton:
     {
         auto buttonOpt = *(qstyleoption_cast<const QStyleOptionButton *>(opt));
@@ -80,6 +77,12 @@ void ElementStyle::drawControl(ControlElement element, const QStyleOption *opt, 
         drawRadioButton(element, buttonOpt, p, w);
     }
         break;
+    case QStyle::CE_CheckBox:
+    {
+        auto buttonOpt = *(qstyleoption_cast<const QStyleOptionButton *>(opt));
+        drawCheckBox(element, buttonOpt, p, w);
+    }
+    break;
     default:
         QProxyStyle::drawControl(element, opt, p, w);
         break;
@@ -110,10 +113,10 @@ void ElementStyle::polish(QWidget *widget)
     if (!widget->property(PROPERTY_ICON_POSITION).isValid()) {
         widget->setProperty(PROPERTY_ICON_POSITION, IP_LEFT);
     }
-    if (widget->metaObject()->inherits(QPushButton().metaObject()) && !widget->property(PROPERTY_BUTTON_TYPE).isValid()) {
+    if (widget->inherits("QPushButton") && !widget->property(PROPERTY_BUTTON_TYPE).isValid()) {
         widget->setProperty(PROPERTY_BUTTON_TYPE, BT_Default);
     }
-    if (widget->metaObject()->inherits(QRadioButton().metaObject()) && !widget->property(PROPERTY_HAS_BORDER).isValid()) {
+    if ((widget->inherits("QRadioButton") || widget->inherits("QCheckBox")) && !widget->property(PROPERTY_HAS_BORDER).isValid()) {
         widget->setProperty(PROPERTY_HAS_BORDER, false);
     }
     widget->installEventFilter(this);
@@ -130,6 +133,9 @@ QRect ElementStyle::subElementRect(SubElement subElement, const QStyleOption *op
 {
     switch (subElement) {
     case QStyle::SE_RadioButtonClickRect:
+    case QStyle::SE_CheckBoxClickRect:
+    case QStyle::SE_CheckBoxContents:
+    case QStyle::SE_CheckBoxIndicator:
     case QStyle::SE_PushButtonBevel:
         return widget->rect();
     default:
@@ -143,8 +149,8 @@ bool ElementStyle::eventFilter(QObject *watched, QEvent *event)
     if (event->type() == QEvent::DynamicPropertyChange) {
         auto w = qobject_cast<QWidget *>(watched);
         if (w) {
-            qDebug() << "a";
-            w->style()->polish(w);
+            auto e = static_cast<QDynamicPropertyChangeEvent*>(event);
+            w->update();
         }
     }
     return QProxyStyle::eventFilter(watched, event);
@@ -252,6 +258,60 @@ void ElementStyle::drawRadioButton(ControlElement element, const QStyleOptionBut
         p->drawRoundedRect(checkRect, iconSize.width() / 2, iconSize.width() / 2);
     } else {
         p->drawRoundedRect(iconRect, 6, 6);
+    }
+    r.setLeft(iconRect.right() + spacing);
+    p->setPen(palette.color(QPalette::ButtonText));
+    p->drawText(r, opt.text, QTextOption(Qt::AlignCenter));
+}
+
+void ElementStyle::drawCheckBox(ControlElement element, const QStyleOptionButton &opt, QPainter *p, const QWidget *w) const
+{
+    auto rect = opt.rect;
+    rect.adjust(1, 1, -1, -1);
+    int radius = rect.height() / 2;
+    if (!w->property(PROPERTY_ROUND_MODE).toBool()) {
+        radius = rect.height() / 8;
+    }
+    QPalette &&palette = radioPalette(w, opt.state);
+    BaseWidget::hightQualityPainter(*p);
+    p->setPen(palette.color(QPalette::Shadow));
+    if (w->property(PROPERTY_HAS_BORDER).toBool()) {
+        p->setBrush(Qt::NoBrush);
+        p->drawRoundedRect(rect, radius, radius);
+    }
+    p->setBrush(palette.button());
+    p->setFont(w->font());
+    int spacing = w->property(PROPERTY_SPACING).toInt();
+    auto textWidth = opt.fontMetrics.horizontalAdvance(opt.text);
+    QSize iconSize(w->fontInfo().pixelSize(), w->fontInfo().pixelSize());
+    QRect r(0, 0, iconSize.width() + spacing + textWidth, rect.height());
+    r.moveCenter(rect.center());
+    QRect iconRect(QPoint(0, 0), iconSize);
+    iconRect.moveCenter(r.center());
+    iconRect.moveLeft(r.left());
+
+    if (opt.state.testAnyFlags(QStyle::State_On | QStyle::State_NoChange)) {
+        p->setBrush(p->pen().color());
+        p->drawRoundedRect(iconRect, 2, 2);
+        if (opt.state.testAnyFlag(QStyle::State_On)) {
+            auto checkRect = QRect(QPoint(0, 0), QSize(iconSize.width()* 0.8, iconSize.height() * 0.6));
+            checkRect.moveCenter(iconRect.center());
+            QPainterPath path;
+            path.moveTo(checkRect.topLeft() + QPoint(0, checkRect.height() / 2));
+            path.lineTo(checkRect.bottomLeft() + QPoint(checkRect.width() / 3, 0));
+            path.lineTo(checkRect.topRight());
+            QPen pen(palette.color(QPalette::Button));
+            pen.setWidth(2);
+            p->setPen(pen);
+            p->drawPath(path);
+        } else {
+            auto checkRect = QRect(QPoint(0, 0), QSize(iconSize.width() - 4, 3));
+            checkRect.moveCenter(iconRect.center());
+            p->setBrush(palette.color(QPalette::Button));
+            p->drawRoundedRect(checkRect, 2, 2);
+        }
+    } else {
+        p->drawRoundedRect(iconRect, 2, 2);
     }
     r.setLeft(iconRect.right() + spacing);
     p->setPen(palette.color(QPalette::ButtonText));
@@ -573,7 +633,7 @@ QPalette ElementStyle::radioPalette(const QWidget *w, const State &state) const
                 return pal;
             }
             //hover & focused & pressed
-            if (state.testAnyFlags(QStyle::State_MouseOver | QStyle::State_HasFocus | QStyle::State_Sunken | QStyle::State_On)) {
+            if (state.testAnyFlags(QStyle::State_MouseOver | QStyle::State_HasFocus | QStyle::State_Sunken | QStyle::State_On | QStyle::State_NoChange)) {
                 pal.setColor(QPalette::Shadow, style->color);
                 pal.setBrush(QPalette::Button, theme->fill.blank);
                 pal.setColor(QPalette::ButtonText, style->color);

@@ -102,6 +102,7 @@ public:
 private:
     void drawPushButton(ControlElement element, const QStyleOptionButton &opt, QPainter *p, const QWidget *w) const;
     void drawRadioButton(ControlElement element, const QStyleOptionButton &opt, QPainter *p, const QWidget *w) const;
+    void drawCheckBox(ControlElement element, const QStyleOptionButton &opt, QPainter *p, const QWidget *w) const;
     QPalette buttonPalette(const QWidget *w, const State &state) const;
     QPalette radioPalette(const QWidget *w, const State &state) const;
 private:
